@@ -34,7 +34,7 @@ func Build(records []Record) (*Node, error) {
 		return nil, fmt.Errorf("root node has parent")
 	}
 
-	node := &Node{ID: 0}
+	root := &Node{ID: 0}
 
 	for i, r := range records[1:] {
 		if r.ID == records[i].ID {
@@ -44,12 +44,12 @@ func Build(records []Record) (*Node, error) {
 			return nil, fmt.Errorf("non-continuous nodes")
 		}
 
-		if !addNode(node, r) {
+		if !addNode(root, r) {
 			return nil, fmt.Errorf("parent node not found")
 		}
 	}
 
-	return node, nil
+	return root, nil
 }
 
 func addNode(node *Node, r Record) bool {
@@ -59,7 +59,8 @@ func addNode(node *Node, r Record) bool {
 	}
 
 	for _, n := range node.Children {
-		if addNode(n, r) {
+		if n.ID == r.Parent {
+			n.Children = append(n.Children, &Node{ID: r.ID})
 			return true
 		}
 	}
