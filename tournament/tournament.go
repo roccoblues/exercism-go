@@ -1,3 +1,4 @@
+// Package tournament implements methods to tally the results of a small football competition.
 package tournament
 
 import (
@@ -13,10 +14,15 @@ type team struct {
 	matches, wins, losses, draws, points int
 }
 
-type tally []*team
+type tally struct {
+	teams map[string]*team
+}
 
+type sortTeams []*team
+
+// Tally the received input to the given output writer.
 func Tally(input io.Reader, output io.Writer) error {
-	var teams = make(map[string]*team)
+	tally := newTally()
 
 	scanner := bufio.NewScanner(input)
 	for scanner.Scan() {
@@ -33,34 +39,18 @@ func Tally(input io.Reader, output io.Writer) error {
 			return fmt.Errorf("invalid input")
 		}
 
-		teamA, teamB, result := teams[s[0]], teams[s[1]], s[2]
-
-		if teamA == nil {
-			teamA = &team{name: s[0]}
-			teams[s[0]] = teamA
-		}
-		if teamB == nil {
-			teamB = &team{name: s[1]}
-			teams[s[1]] = teamB
-		}
-
-		teamA.matches++
-		teamB.matches++
+		teamA, teamB, result := tally.getTeam(s[0]), tally.getTeam(s[1]), s[2]
 
 		switch result {
 		case "win":
-			teamA.points += 3
-			teamA.wins++
-			teamB.losses++
+			teamA.recordWin()
+			teamB.recordLoss()
 		case "loss":
-			teamB.points += 3
-			teamB.wins++
-			teamA.losses++
+			teamA.recordLoss()
+			teamB.recordWin()
 		case "draw":
-			teamA.points++
-			teamA.draws++
-			teamB.points++
-			teamB.draws++
+			teamA.recordDraw()
+			teamB.recordDraw()
 		default:
 			return fmt.Errorf("invalid result")
 		}
@@ -69,45 +59,69 @@ func Tally(input io.Reader, output io.Writer) error {
 		return err
 	}
 
-	newTally(teams).write(output)
+	tally.write(output)
 
 	return nil
 }
 
-func newTally(teams map[string]*team) *tally {
-	tally := make(tally, len(teams))
+func (tm *team) recordWin() {
+	tm.matches++
+	tm.wins++
+	tm.points += 3
+}
 
+func (tm *team) recordLoss() {
+	tm.matches++
+	tm.losses++
+}
+
+func (tm *team) recordDraw() {
+	tm.matches++
+	tm.draws++
+	tm.points++
+}
+
+func newTally() *tally {
+	return &tally{teams: make(map[string]*team)}
+}
+
+func (ta *tally) getTeam(name string) *team {
+	t := ta.teams[name]
+	if t == nil {
+		t = &team{name: name}
+		ta.teams[name] = t
+	}
+
+	return t
+}
+
+func (ta *tally) write(output io.Writer) {
+	sorted := make(sortTeams, len(ta.teams))
 	i := 0
-	for _, team := range teams {
-		tally[i] = team
+	for _, team := range ta.teams {
+		sorted[i] = team
 		i++
 	}
+	sort.Sort(sort.Reverse(sorted))
 
-	sort.Sort(sort.Reverse(tally))
-
-	return &tally
-}
-
-func (t *tally) write(output io.Writer) {
 	fmt.Fprintf(output, "%-31s|%3s |%3s |%3s |%3s |%3s\n", "Team", "MP", "W", "D", "L", "P")
-
-	for _, team := range *t {
-		fmt.Fprintf(output, "%-31s|%3d |%3d |%3d |%3d |%3d\n", team.name, team.matches, team.wins, team.draws, team.losses, team.points)
+	for _, t := range sorted {
+		fmt.Fprintf(output, "%-31s|%3d |%3d |%3d |%3d |%3d\n", t.name, t.matches, t.wins, t.draws, t.losses, t.points)
 	}
 }
 
-func (t tally) Len() int {
-	return len(t)
+func (s sortTeams) Len() int {
+	return len(s)
 }
 
-func (t tally) Less(i, j int) bool {
-	if t[i].points == t[j].points {
-		return t[i].name > t[j].name
+func (s sortTeams) Less(i, j int) bool {
+	if s[i].points == s[j].points {
+		return s[i].name > s[j].name
 	}
 
-	return t[i].points < t[j].points
+	return s[i].points < s[j].points
 }
 
-func (t tally) Swap(i, j int) {
-	t[i], t[j] = t[j], t[i]
+func (s sortTeams) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
 }
