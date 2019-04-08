@@ -24,7 +24,7 @@ func Tally(input io.Reader, output io.Writer) error {
 		if len(text) == 0 {
 			continue
 		}
-		if text[0] == byte('#') {
+		if strings.HasPrefix(text, "#") {
 			continue
 		}
 
@@ -35,24 +35,21 @@ func Tally(input io.Reader, output io.Writer) error {
 
 		teamA, teamB := tally[s[0]], tally[s[1]]
 
+		teamA.matches++
+		teamB.matches++
+
 		switch s[2] {
 		case "win":
-			teamA.matches++
 			teamA.wins++
 			teamA.points += 3
-			teamB.matches++
 			teamB.losses++
 		case "loss":
-			teamA.matches++
 			teamA.losses++
-			teamB.matches++
 			teamB.wins++
 			teamB.points += 3
 		case "draw":
-			teamA.matches++
 			teamA.draws++
 			teamA.points++
-			teamB.matches++
 			teamB.draws++
 			teamB.points++
 		default:
