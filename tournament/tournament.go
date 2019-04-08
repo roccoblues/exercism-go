@@ -14,15 +14,9 @@ type team struct {
 	matches, wins, losses, draws, points int
 }
 
-type tally struct {
-	teams map[string]*team
-}
-
-type sortTeams []*team
-
 // Tally the received input to the given output writer.
 func Tally(input io.Reader, output io.Writer) error {
-	tally := newTally()
+	tally := make(map[string]team)
 
 	scanner := bufio.NewScanner(input)
 	for scanner.Scan() {
@@ -39,89 +33,57 @@ func Tally(input io.Reader, output io.Writer) error {
 			return fmt.Errorf("invalid input")
 		}
 
-		teamA, teamB, result := tally.getTeam(s[0]), tally.getTeam(s[1]), s[2]
+		teamA, teamB := tally[s[0]], tally[s[1]]
 
-		switch result {
+		switch s[2] {
 		case "win":
-			teamA.recordWin()
-			teamB.recordLoss()
+			teamA.matches++
+			teamA.wins++
+			teamA.points += 3
+			teamB.matches++
+			teamB.losses++
 		case "loss":
-			teamA.recordLoss()
-			teamB.recordWin()
+			teamA.matches++
+			teamA.losses++
+			teamB.matches++
+			teamB.wins++
+			teamB.points += 3
 		case "draw":
-			teamA.recordDraw()
-			teamB.recordDraw()
+			teamA.matches++
+			teamA.draws++
+			teamA.points++
+			teamB.matches++
+			teamB.draws++
+			teamB.points++
 		default:
 			return fmt.Errorf("invalid result")
 		}
+
+		tally[s[0]], tally[s[1]] = teamA, teamB
 	}
+
 	if err := scanner.Err(); err != nil {
 		return err
 	}
 
-	tally.write(output)
-
-	return nil
-}
-
-func (tm *team) recordWin() {
-	tm.matches++
-	tm.wins++
-	tm.points += 3
-}
-
-func (tm *team) recordLoss() {
-	tm.matches++
-	tm.losses++
-}
-
-func (tm *team) recordDraw() {
-	tm.matches++
-	tm.draws++
-	tm.points++
-}
-
-func newTally() *tally {
-	return &tally{teams: make(map[string]*team)}
-}
-
-func (ta *tally) getTeam(name string) *team {
-	t := ta.teams[name]
-	if t == nil {
-		t = &team{name: name}
-		ta.teams[name] = t
-	}
-
-	return t
-}
-
-func (ta *tally) write(output io.Writer) {
-	sorted := make(sortTeams, len(ta.teams))
+	sorted := make([]team, len(tally))
 	i := 0
-	for _, team := range ta.teams {
-		sorted[i] = team
+	for n, t := range tally {
+		t.name = n
+		sorted[i] = t
 		i++
 	}
-	sort.Sort(sort.Reverse(sorted))
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].points == sorted[j].points {
+			return sorted[i].name < sorted[j].name
+		}
+		return sorted[i].points > sorted[j].points
+	})
 
 	fmt.Fprintf(output, "%-31s|%3s |%3s |%3s |%3s |%3s\n", "Team", "MP", "W", "D", "L", "P")
 	for _, t := range sorted {
 		fmt.Fprintf(output, "%-31s|%3d |%3d |%3d |%3d |%3d\n", t.name, t.matches, t.wins, t.draws, t.losses, t.points)
 	}
-}
 
-func (s sortTeams) Len() int {
-	return len(s)
-}
-
-func (s sortTeams) Less(i, j int) bool {
-	if s[i].points == s[j].points {
-		return s[i].name > s[j].name
-	}
-
-	return s[i].points < s[j].points
-}
-
-func (s sortTeams) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
+	return nil
 }
