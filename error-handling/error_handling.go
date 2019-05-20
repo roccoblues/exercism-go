@@ -1,5 +1,7 @@
 package erratum
 
+// Use opens the resource o, and calls Frob(input) on it.
+// The opened resource is guaranteed to be closed.
 func Use(o ResourceOpener, input string) (err error) {
 	var resource Resource
 	resource, err = o()
