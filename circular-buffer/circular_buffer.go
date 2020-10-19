@@ -7,6 +7,7 @@ import (
 // Buffer implements a circular buffer of bytes.
 type Buffer struct {
 	storage  []byte
+	size     int
 	readPos  int
 	writePos int
 	count    int
@@ -14,7 +15,13 @@ type Buffer struct {
 
 // NewBuffer returns a new buffer of the given size.
 func NewBuffer(size int) *Buffer {
-	return &Buffer{storage: make([]byte, size)}
+	return &Buffer{
+		storage:  make([]byte, size),
+		size:     size,
+		readPos:  0,
+		writePos: 0,
+		count:    0,
+	}
 }
 
 // ReadByte returns the next byte from the buffer.
@@ -34,7 +41,7 @@ func (b *Buffer) ReadByte() (byte, error) {
 // WriteByte writes a byte to the buffer.
 // Returns an error if the buffer is full.
 func (b *Buffer) WriteByte(c byte) error {
-	if b.count == len(b.storage) {
+	if b.count == b.size {
 		return errors.New("buffer is full")
 	}
 
@@ -51,7 +58,7 @@ func (b *Buffer) Overwrite(c byte) {
 	b.storage[b.writePos] = c
 	b.advanceWriter()
 
-	if b.count == len(b.storage) {
+	if b.count == b.size {
 		b.advanceReader()
 	} else {
 		b.count++
@@ -67,14 +74,14 @@ func (b *Buffer) Reset() {
 
 func (b *Buffer) advanceReader() {
 	b.readPos++
-	if b.readPos >= len(b.storage) {
+	if b.readPos == b.size {
 		b.readPos = 0
 	}
 }
 
 func (b *Buffer) advanceWriter() {
 	b.writePos++
-	if b.writePos >= len(b.storage) {
+	if b.writePos == b.size {
 		b.writePos = 0
 	}
 }
